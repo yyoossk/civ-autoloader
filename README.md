@@ -3,7 +3,7 @@
 ## About this fork / このフォークについて
 
 This fork of [SeanHeuc/civ-autoloader](https://github.com/SeanHeuc/civ-autoloader) changes one thing: the `third_party/CivSwitchFS` submodule points to [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS).
-That payload carries seven improvements on top of upstream CivSwitchFS, added in three releases.
+That payload carries eight improvements on top of upstream CivSwitchFS, added in four releases.
 Everything else is upstream civ-autoloader.
 
 ### improved-20261117
@@ -51,14 +51,22 @@ The old value caused no observed failure.
 DIRTY_FILE_SIZE goes from 0x800000 (8 MiB) to 0x700000 (7 MiB).
 This leaves 1 MiB of headroom under the BC save-data cap for metadata and other outstanding data.
 
+### improved-20261124b
+
+8. **Installer creates the save folders**
+When the console's save data has no saves/Single folder, installing the autoloader save failed at the file creation step with `create : 0x202` (PathNotFound).
+The installer now creates `save:/saves` and `save:/saves/Single` first when they are missing.
+Creating them is a no-op when they already exist.
+The payload that runs at Load Game is unchanged from improved-20261124.
+
 Verification status: improvements 1 and 2 are verified on real hardware.
-Improvements 3 to 7 are verified at the source and payload level only.
+Improvements 3 to 8 are verified at the source and payload level only.
 See [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) for the full details of each change.
 
 ### このフォークの改良点
 
 このフォークは [SeanHeuc/civ-autoloader](https://github.com/SeanHeuc/civ-autoloader) の `third_party/CivSwitchFS` サブモジュールの向き先を、改良版の [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) に変更したものです。
-そのペイロードには、upstream の CivSwitchFS に対して3回のリリースで7つの改良が入っています。
+そのペイロードには、upstream の CivSwitchFS に対して4回のリリースで8つの改良が入っています。
 それ以外は upstream の civ-autoloader のままです。
 
 improved-20261117:
@@ -105,8 +113,16 @@ improved-20261124:
 DIRTY_FILE_SIZE を 0x800000 (8 MiB) から 0x700000 (7 MiB) にしました。
 BC セーブデータの上限に対して、メタデータなどの分として 1 MiB の余裕を残します。
 
+improved-20261124b:
+
+8. **インストーラーがセーブフォルダを作成**
+本体のセーブデータに saves/Single フォルダが無いと、オートローダーセーブのインストールがファイル作成の段階で「create : 0x202」(PathNotFound) となり失敗していました。
+不足している場合は、まず `save:/saves` と `save:/saves/Single` を作成してから書き込むようにしました。
+既にある場合は何もしません。
+「ゲームをロード」で動くペイロード自体は improved-20261124 から変更ありません。
+
 検証の状態: 改良1と2は実機確認済みです。
-改良3から7は、ソースとペイロードのレベルでの検証のみです。
+改良3から8は、ソースとペイロードのレベルでの検証のみです。
 各変更の詳しい内容は [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) を見てください。
 
 ---
