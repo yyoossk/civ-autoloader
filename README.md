@@ -4,233 +4,43 @@
 
 This fork of [SeanHeuc/civ-autoloader](https://github.com/SeanHeuc/civ-autoloader) changes one thing: the `third_party/CivSwitchFS` submodule points to [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS).
 
-That payload carries eight improvements on top of upstream CivSwitchFS, added in four releases.
-
 Everything else is upstream civ-autoloader.
 
-### Current status (2026-11-25)
+The current payload release is stock-20261125b: the stock upstream CivSwitchFS payload plus three fixes.
 
-On the test console (Switch 2, firmware 23.0.1), every improved payload stopped at the first step of every boot: "Could not open the required file systems."
+1. The OperateRange packet size is corrected (0x0E words).
+2. The dirty file is 7 MiB instead of 8 MiB.
+3. The save installer creates the saves/Single folder when it is missing.
 
-The stock upstream payload boots on the same console.
+See [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) for the full details of each fix.
 
-The current release is therefore stock-20261125b: the stock upstream payload plus only improvements 6 and 7 (the OperateRange packet size and the 7 MiB dirty file) and improvement 8 (the installer creates the save folders).
+Earlier payload releases carried more improvements (timing learning, a freeze fix, and retry changes), but on the test console they stopped at the first step of every boot.
 
-It booted on the first try on the test console.
+The stock payload boots on the same console, and stock-20261125b booted on the first try.
 
-Improvements 1 to 5 (timing learning, the freeze fix, and the retry changes) are not in the current release.
+Which of the earlier changes breaks the first step is still under investigation.
 
-Which of them breaks the first step is still under investigation.
+### このフォークについて
 
-kaiHEN Installer now installs stock-20261125b.
-
-### improved-20261117
-
-1. **Timing learning**
-
-When the FS canary campaign succeeds, the winning timing schedule is recorded inside the save itself.
-
-The next boot starts from the recorded schedule instead of the stock table.
-
-Invalid records are ignored, and reinstalling the save resets the record.
-
-On screen: `TIMING: recorded schedule loaded (win N); starting from it.`
-
-2. **Freeze fix**
-
-IPC sends were bare `svcSendSyncRequest` calls with no timeout, so an unresponsive file-system service froze the console at `Checking the canary window...`.
-
-Sends now run on a sacrificial thread with a 10-second bounded wait.
-
-If the service stops replying, the run ends safely with a message instead of hanging.
-
-Verified on real hardware (Switch 2, firmware 23.0.1, Japanese console and the Japanese version of Civilization VII).
-
-With timing learning, kaiHEN booted at a high rate from the second boot onward.
-
-### improved-20261121 — retry reliability
-
-The design of these three changes was ported from the slop branch of [s8n/CivSwitchFS-kaiHEN](https://github.com/s8n/CivSwitchFS-kaiHEN).
-
-3. **Retirement precheck**
-
-Before running the cache-retirement waves, the payload reads back the candidate cache entry and classifies it.
-
-If the alias is already gone, the retirement waves are skipped entirely and the state counts as verified.
-
-Fewer runs end in a false `Cleanup failed; another attempt is unsafe.` stop, so more failures become safe retries within the same boot.
-
-4. **Cleanup cache invalidate**
-
-Before deleting the scratch tree and committing, cleanup invalidates the cached dirty scratch file via IFile::OperateRange.
-
-The delete and commit therefore start from a clean cache state.
-
-5. **Retune threshold**
-
-The canary campaign now retunes its delays unless at least 80% of windows qualify (previously 50%).
-
-In-run timing adjustments engage more readily across the attempt budget.
-
-### improved-20261124
-
-6. **OperateRange packet size corrected**
-
-The cache-invalidate commands declared 0x0C raw words for a 24-byte input.
-
-The correct count is 0x0E: 0x10 bytes of padding + the 0x10-byte CMIF header + the 0x18-byte input, divided by 4.
-
-Both call sites now declare 0x0E, matching the libnx reference formula.
-
-The old value caused no observed failure.
-
-7. **Dirty file size reduced**
-
-DIRTY_FILE_SIZE goes from 0x800000 (8 MiB) to 0x700000 (7 MiB).
-
-This leaves 1 MiB of headroom under the BC save-data cap for metadata and other outstanding data.
-
-### improved-20261124b
-
-8. **Installer creates the save folders**
-
-When the console's save data has no saves/Single folder, installing the autoloader save failed at the file creation step with `create : 0x202` (PathNotFound).
-
-The installer now creates `save:/saves` and `save:/saves/Single` first when they are missing.
-
-Creating them is a no-op when they already exist.
-
-The payload that runs at Load Game is unchanged from improved-20261124.
-
-Verification status: improvements 1 and 2 are verified on real hardware.
-
-Improvements 3 to 8 are verified at the source and payload level only.
-
-See [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) for the full details of each change.
-
-### このフォークの改良点
-
-このフォークは [SeanHeuc/civ-autoloader](https://github.com/SeanHeuc/civ-autoloader) の `third_party/CivSwitchFS` サブモジュールの向き先を、改良版の [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) に変更したものです。
-
-そのペイロードには、upstream の CivSwitchFS に対して4回のリリースで8つの改良が入っています。
+このフォークは [SeanHeuc/civ-autoloader](https://github.com/SeanHeuc/civ-autoloader) の `third_party/CivSwitchFS` サブモジュールの向き先を、[yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) に変更したものです。
 
 それ以外は upstream の civ-autoloader のままです。
 
-### 現在の状況 (2026-11-25)
+現在のペイロードのリリースは stock-20261125b です。
 
-テスト機 (Switch 2、ファームウェア 23.0.1) では、改良版ペイロードが毎回起動の最初の段階で止まるようになりました (「Could not open the required file systems.」)。
+純正の upstream CivSwitchFS ペイロードに修正を3点加えたものです。
 
-同じ本体で、純正の upstream ペイロードは起動します。
+1. OperateRange のパケットサイズを修正 (0x0E 語)。
+2. ダーティファイルを 8MiB から 7MiB に。
+3. セーブのインストーラーが、無い場合に saves/Single フォルダを作成。
 
-そのため現在のリリースは stock-20261125b です。
+各修正の詳細は [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) を見てください。
 
-純正ペイロードに、改良6と7 (OperateRange のパケットサイズとダーティファイル 7MiB) と改良8 (インストーラーのフォルダ作成) だけを足したものです。
+以前のペイロードのリリースにはもっと多くの改良 (タイミング学習、フリーズ修正、リトライ変更) が入っていましたが、テスト機では毎回起動の最初の段階で止まりました。
 
-テスト機では一発で起動しました。
+同じ本体で純正ペイロードは起動し、stock-20261125b は一発で起動しました。
 
-改良1〜5 (タイミング学習、フリーズ修正、リトライ変更) は現在のリリースには入っていません。
-
-そのどれが最初の段階を止めているかは調査中です。
-
-kaiHEN Installer が入れるのは stock-20261125b になりました。
-
-improved-20261117:
-
-1. **タイミング学習**
-
-FS の canary が成功したときのタイミングを、セーブ内に記録します。
-
-次回起動時は初期テーブルではなく、記録したタイミングから開始します。
-
-記録が不正なら無視され、セーブを入れ直せばリセットされます。
-
-画面表示: `TIMING: recorded schedule loaded (win N); starting from it.`
-
-2. **フリーズ修正**
-
-IPC 送信はタイムアウトのない `svcSendSyncRequest` で、FS が無応答になると「Checking the canary window...」で本体が凍結していました。
-
-送信を使い捨てスレッドで実行し、最大10秒で打ち切るようにしました。
-
-無応答時は固まらずにメッセージを表示して安全に終了します。
-
-実機確認済みです (Switch 2 / FW 23.0.1 / 国内版本体・日本版シヴィライゼーション7)。
-
-タイミング学習により、2回目以降に高い確率で kaiHEN が起動しました。
-
-improved-20261121 (リトライの信頼性。
-
-設計は [s8n/CivSwitchFS-kaiHEN](https://github.com/s8n/CivSwitchFS-kaiHEN) の slop ブランチから移植):
-
-3. **リタイア前チェック**
-
-キャッシュのリタイア用ウェーブを走らせる前に、候補エントリを読み戻して状態を判定します。
-
-エイリアスが既に消えていればウェーブ自体を省略し、安全とみなします。
-
-「Cleanup failed; another attempt is unsafe.」で止まってしまうケースが減り、同一ブート内で安全に再試行できる幅が広がります。
-
-4. **クリーンアップ時のキャッシュ無効化**
-
-スクラッチを削除してコミットする前に、汚れたスクラッチファイルのキャッシュを IFile::OperateRange で無効化します。
-
-削除とコミットがクリーンなキャッシュ状態から始まります。
-
-5. **再調整のしきい値**
-
-タイミング再調整が働く条件を「合格率50%未満」から「80%未満」に変更しました。
-
-アテンプトの中で調整が効きやすくなります。
-
-improved-20261124:
-
-6. **OperateRange のパケットサイズを修正**
-
-キャッシュ無効化の命令が、24バイトの入力に対して 0x0C 語と宣言していました。
-
-正しいのは 0x0E 語です。
-
-パディング 0x10 バイト + CMIF ヘッダ 0x10 バイト + 入力 0x18 バイトを4で割った値です。
-
-両方の呼び出しを 0x0E に揃え、libnx の参照式と一致させました。
-
-古い値でも失敗した形跡はありません。
-
-7. **ダーティファイルのサイズを縮小**
-
-DIRTY_FILE_SIZE を 0x800000 (8 MiB) から 0x700000 (7 MiB) にしました。
-
-BC セーブデータの上限に対して、メタデータなどの分として 1 MiB の余裕を残します。
-
-improved-20261124b:
-
-8. **インストーラーがセーブフォルダを作成**
-
-本体のセーブデータに saves/Single フォルダが無いと、オートローダーセーブのインストールがファイル作成の段階で「create : 0x202」(PathNotFound) となり失敗していました。
-
-不足している場合は、まず `save:/saves` と `save:/saves/Single` を作成してから書き込むようにしました。
-
-既にある場合は何もしません。
-
-「ゲームをロード」で動くペイロード自体は improved-20261124 から変更ありません。
-
-検証の状態: 改良1と2は実機確認済みです。
-
-改良3から8は、ソースとペイロードのレベルでの検証のみです。
-
-各変更の詳しい内容は [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) を見てください。
-
----
-
-Autoloader for **Civilization VII** on Switch 2.
-
-A host joins the game's local-wireless lobby, delivers the CivSwitch userland
-
-loader, and installs the **autoloader save**.
-
-On the next `Load Game` the save
-
-runs CivSwitchFS, prepares kaiHEN, and boots it.
+以前の変更のどれが最初の段階を止めているかは調査中です。
 
 ## Status
 
