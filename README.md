@@ -2,19 +2,112 @@
 
 ## About this fork / このフォークについて
 
-This fork of [SeanHeuc/civ-autoloader](https://github.com/SeanHeuc/civ-autoloader) changes one thing: the `third_party/CivSwitchFS` submodule points to [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS), which adds two improvements to the payload the autoloader save runs:
+This fork of [SeanHeuc/civ-autoloader](https://github.com/SeanHeuc/civ-autoloader) changes one thing: the `third_party/CivSwitchFS` submodule points to [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS).
+That payload carries seven improvements on top of upstream CivSwitchFS, added in three releases.
+Everything else is upstream civ-autoloader.
 
-1. **Timing learning** — The winning FS timing schedule is recorded in the save and reused from the next boot on, so kaiHEN boots at a high rate from the second boot onward (verified on real hardware).
-2. **Freeze fix** — IPC sends are bounded (10 s), so an unresponsive FS service stops the run safely with a message instead of freezing the console at `Checking the canary window...`.
+### improved-20261117
 
-Everything else is upstream civ-autoloader. Verified on real hardware (Switch 2, firmware 23.0.1, Japanese console and the Japanese version of Civilization VII); the homemade loader (kaiHEN Installer) also booted with the Japanese software.
+1. **Timing learning**
+When the FS canary campaign succeeds, the winning timing schedule is recorded inside the save itself.
+The next boot starts from the recorded schedule instead of the stock table.
+Invalid records are ignored, and reinstalling the save resets the record.
+On screen: `TIMING: recorded schedule loaded (win N); starting from it.`
 
-このフォークは [SeanHeuc/civ-autoloader](https://github.com/SeanHeuc/civ-autoloader) の `third_party/CivSwitchFS` サブモジュールの向き先を、改良版の [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) に変更したものです。改良は2点です。
+2. **Freeze fix**
+IPC sends were bare `svcSendSyncRequest` calls with no timeout, so an unresponsive file-system service froze the console at `Checking the canary window...`.
+Sends now run on a sacrificial thread with a 10-second bounded wait.
+If the service stops replying, the run ends safely with a message instead of hanging.
 
-1. **タイミング学習** — 成功した FS タイミングをセーブに記録して次回から再利用します。実機では2回目以降に高い確率で kaiHEN が起動しました。
-2. **フリーズ修正** — IPC 送信に10秒の上限を付け、FS 無応答時は「Checking the canary window...」で固まらずにメッセージを表示して安全に終了します。
+Verified on real hardware (Switch 2, firmware 23.0.1, Japanese console and the Japanese version of Civilization VII).
+With timing learning, kaiHEN booted at a high rate from the second boot onward.
 
-それ以外は upstream の civ-autoloader のままです。実機確認済み (Switch 2 / FW 23.0.1 / 国内版本体・日本版シヴィライゼーション7)。自作ローダー (kaiHEN Installer) も日本版のソフトで起動しました。
+### improved-20261121 — retry reliability
+
+The design of these three changes was ported from the slop branch of [s8n/CivSwitchFS-kaiHEN](https://github.com/s8n/CivSwitchFS-kaiHEN).
+
+3. **Retirement precheck**
+Before running the cache-retirement waves, the payload reads back the candidate cache entry and classifies it.
+If the alias is already gone, the retirement waves are skipped entirely and the state counts as verified.
+Fewer runs end in a false `Cleanup failed; another attempt is unsafe.` stop, so more failures become safe retries within the same boot.
+
+4. **Cleanup cache invalidate**
+Before deleting the scratch tree and committing, cleanup invalidates the cached dirty scratch file via IFile::OperateRange.
+The delete and commit therefore start from a clean cache state.
+
+5. **Retune threshold**
+The canary campaign now retunes its delays unless at least 80% of windows qualify (previously 50%).
+In-run timing adjustments engage more readily across the attempt budget.
+
+### improved-20261124
+
+6. **OperateRange packet size corrected**
+The cache-invalidate commands declared 0x0C raw words for a 24-byte input.
+The correct count is 0x0E: 0x10 bytes of padding + the 0x10-byte CMIF header + the 0x18-byte input, divided by 4.
+Both call sites now declare 0x0E, matching the libnx reference formula.
+The old value caused no observed failure.
+
+7. **Dirty file size reduced**
+DIRTY_FILE_SIZE goes from 0x800000 (8 MiB) to 0x700000 (7 MiB).
+This leaves 1 MiB of headroom under the BC save-data cap for metadata and other outstanding data.
+
+Verification status: improvements 1 and 2 are verified on real hardware.
+Improvements 3 to 7 are verified at the source and payload level only.
+See [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) for the full details of each change.
+
+### このフォークの改良点
+
+このフォークは [SeanHeuc/civ-autoloader](https://github.com/SeanHeuc/civ-autoloader) の `third_party/CivSwitchFS` サブモジュールの向き先を、改良版の [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) に変更したものです。
+そのペイロードには、upstream の CivSwitchFS に対して3回のリリースで7つの改良が入っています。
+それ以外は upstream の civ-autoloader のままです。
+
+improved-20261117:
+
+1. **タイミング学習**
+FS の canary が成功したときのタイミングを、セーブ内に記録します。
+次回起動時は初期テーブルではなく、記録したタイミングから開始します。
+記録が不正なら無視され、セーブを入れ直せばリセットされます。
+画面表示: `TIMING: recorded schedule loaded (win N); starting from it.`
+
+2. **フリーズ修正**
+IPC 送信はタイムアウトのない `svcSendSyncRequest` で、FS が無応答になると「Checking the canary window...」で本体が凍結していました。
+送信を使い捨てスレッドで実行し、最大10秒で打ち切るようにしました。
+無応答時は固まらずにメッセージを表示して安全に終了します。
+
+実機確認済みです (Switch 2 / FW 23.0.1 / 国内版本体・日本版シヴィライゼーション7)。
+タイミング学習により、2回目以降に高い確率で kaiHEN が起動しました。
+
+improved-20261121 (リトライの信頼性。設計は [s8n/CivSwitchFS-kaiHEN](https://github.com/s8n/CivSwitchFS-kaiHEN) の slop ブランチから移植):
+
+3. **リタイア前チェック**
+キャッシュのリタイア用ウェーブを走らせる前に、候補エントリを読み戻して状態を判定します。
+エイリアスが既に消えていればウェーブ自体を省略し、安全とみなします。
+「Cleanup failed; another attempt is unsafe.」で止まってしまうケースが減り、同一ブート内で安全に再試行できる幅が広がります。
+
+4. **クリーンアップ時のキャッシュ無効化**
+スクラッチを削除してコミットする前に、汚れたスクラッチファイルのキャッシュを IFile::OperateRange で無効化します。
+削除とコミットがクリーンなキャッシュ状態から始まります。
+
+5. **再調整のしきい値**
+タイミング再調整が働く条件を「合格率50%未満」から「80%未満」に変更しました。
+アテンプトの中で調整が効きやすくなります。
+
+improved-20261124:
+
+6. **OperateRange のパケットサイズを修正**
+キャッシュ無効化の命令が、24バイトの入力に対して 0x0C 語と宣言していました。
+正しいのは 0x0E 語です。
+パディング 0x10 バイト + CMIF ヘッダ 0x10 バイト + 入力 0x18 バイトを4で割った値です。
+両方の呼び出しを 0x0E に揃え、libnx の参照式と一致させました。
+古い値でも失敗した形跡はありません。
+
+7. **ダーティファイルのサイズを縮小**
+DIRTY_FILE_SIZE を 0x800000 (8 MiB) から 0x700000 (7 MiB) にしました。
+BC セーブデータの上限に対して、メタデータなどの分として 1 MiB の余裕を残します。
+
+検証の状態: 改良1と2は実機確認済みです。
+改良3から7は、ソースとペイロードのレベルでの検証のみです。
+各変更の詳しい内容は [yyoossk/CivSwitchFS](https://github.com/yyoossk/CivSwitchFS) を見てください。
 
 ---
 
